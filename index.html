@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Software Factory: the game</title>
+<meta name="description" content="Run an AI software factory. Assign humans and agents, add harnesses and context, require human approval on risky stages, and ship without incidents.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EBEF; --surface:#FFFFFF; --surface-2:#F3F5F8; --ink:#1A2230; --muted:#5B6676; --line:#C9D0DA;
+  --agent:#4B57D1; --agent-soft:#E6E8FB; --human:#0E7C70; --human-soft:#DDF2EF;
+  --gate:#E8A400; --gate-soft:#FFF1C7; --gate-ink:#5A4200;
+  --danger:#C93C3C; --danger-soft:#FBE6E6; --ok:#1F8A4C; --ok-soft:#E1F3E8;
+  --on-accent:#FFFFFF; --stripe:#1E1E1E;
+  color-scheme: light;
+  font-family:'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12171F; --surface:#1B222D; --surface-2:#232C39; --ink:#E7EBF1; --muted:#9AA6B6; --line:#334052;
+    --agent:#8B95F5; --agent-soft:#262C55; --human:#43C2B1; --human-soft:#173A36;
+    --gate:#F2B51C; --gate-soft:#3A3010; --gate-ink:#F5D27A;
+    --danger:#F07070; --danger-soft:#3D1F22; --ok:#5CCB8A; --ok-soft:#183325;
+    --on-accent:#10151C; --stripe:#10151C;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-size:16px;line-height:1.5;min-height:100vh;padding-bottom:env(safe-area-inset-bottom,0px)}
+button{font:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+:focus-visible{outline:3px solid var(--agent);outline-offset:2px}
+.muted{color:var(--muted)}
+
+/* Header */
+.top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 20px 10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:750;font-size:18px;font-stretch:110%;background:none;border:none;color:var(--ink);padding:0}
+.brand small{color:var(--muted);font-weight:500;font-stretch:100%;font-size:15px;margin-left:4px}
+.mark{width:32px;height:32px;border-radius:9px;background:var(--agent);display:grid;place-items:center;color:var(--on-accent)}
+.hud{margin-left:auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.hud[hidden]{display:none}
+.stat{display:flex;flex-direction:column;line-height:1.1}
+.stat span{font-size:12px;color:var(--muted)}
+.stat b{font-size:20px;font-variant-numeric:tabular-nums;font-stretch:115%}
+.stat b.bump{animation:bump .5s ease}
+@keyframes bump{40%{transform:scale(1.25)}}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 14px;font-size:14px}
+.ghost:hover{border-color:var(--ink)}
+
+main{max-width:1240px;margin:0 auto;padding:20px}
+body.coaching main{padding-bottom:230px}
+
+/* Welcome */
+.welcome{display:grid;grid-template-columns:1.25fr 1fr;gap:28px;align-items:start;padding-top:18px}
+@media (max-width:880px){.welcome{grid-template-columns:1fr}}
+.hero h1{font-size:clamp(40px,6.4vw,78px);line-height:.98;margin:0 0 18px;font-stretch:125%;font-weight:800;letter-spacing:-.02em;max-width:12ch}
+.lede{font-size:19px;max-width:54ch;color:var(--muted);margin:0 0 24px}
+.mini{position:relative;display:flex;gap:6px;margin:0 0 26px;padding-top:34px;max-width:620px}
+.mini::before{content:"";position:absolute;left:0;right:0;top:26px;height:6px;border-radius:3px;background:var(--line)}
+.mini span{flex:1;text-align:center;font-size:13px;font-weight:650;padding:8px 2px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.mini .g{flex:0 0 10px;padding:0;border:none;border-radius:3px;margin-top:-14px;background:repeating-linear-gradient(-45deg,var(--gate) 0 6px,var(--stripe) 6px 12px)}
+.mini .box{position:absolute;top:0;left:0;flex:none;padding:0;border:none;background:none;font-size:24px;line-height:1;animation:ride 3.4s cubic-bezier(.6,0,.3,1) .5s both}
+@keyframes ride{0%{left:0}55%{left:calc(75% - 14px)}72%{left:calc(75% - 14px)}100%{left:calc(100% - 28px)}}
+.mini .gd{position:relative;overflow:hidden;background:var(--gate-soft);color:var(--gate-ink);border-color:var(--gate)}
+.mini .gd::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:repeating-linear-gradient(-45deg,var(--gate) 0 6px,var(--stripe) 6px 12px)}
+.steps-list{counter-reset:s;list-style:none;padding:0;margin:0 0 24px;max-width:60ch}
+.steps-list li{counter-increment:s;display:flex;gap:14px;padding:9px 0;border-top:1px solid var(--line)}
+.steps-list li::before{content:counter(s);font-weight:800;font-stretch:125%;color:var(--agent);min-width:16px}
+.namefield{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;max-width:340px}
+.namefield span{font-size:14px;color:var(--muted)}
+.namefield input{font:inherit;padding:11px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.namefield input:focus{border-color:var(--agent);outline:none;box-shadow:0 0 0 3px var(--agent-soft)}
+.start{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* Buttons */
+.primary{background:var(--ink);color:var(--surface);border:none;border-radius:10px;padding:12px 20px;font-weight:700;font-size:16px}
+.primary:disabled{opacity:.38}
+.primary.full{width:100%}
+.secondary{background:var(--surface);border:1.5px solid var(--agent);color:var(--agent);border-radius:10px;padding:10px 16px;font-weight:650;font-size:15px}
+.secondary:disabled{opacity:.4}
+
+/* Panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+.ph{font-size:18px;margin:0 0 10px;font-stretch:110%}
+.board ol{list-style:none;margin:0;padding:0}
+.board li,.blist li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:15px}
+.blist{list-style:none;margin:0;padding:0}
+.board li b,.blist li b{font-variant-numeric:tabular-nums}
+.board li .pos,.blist li .pos{color:var(--muted);min-width:22px;display:inline-block}
+.blist li.me{background:var(--agent-soft);border-radius:8px;padding-left:8px;padding-right:8px}
+.empty{color:var(--muted);font-size:15px;margin:0}
+.empty.warnnote{color:var(--gate-ink);background:var(--gate-soft);padding:8px 10px;border-radius:8px;margin-bottom:10px;font-size:14px}
+
+/* Stepper */
+.stepper{display:flex;gap:6px;list-style:none;padding:0 0 4px;margin:0 0 18px;overflow-x:auto}
+.stepper li{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:14px;color:var(--muted);white-space:nowrap}
+.stepper li i{font-style:normal;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);font-size:12px;font-weight:700}
+.stepper li.now{color:var(--ink);border-color:var(--ink);font-weight:650}
+.stepper li.now i{background:var(--ink);color:var(--surface)}
+.stepper li.done i{background:var(--ok);color:var(--on-accent)}
+
+/* Brief */
+.brief,.result{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:20px}
+@media (max-width:820px){.brief,.result{grid-template-columns:1fr}}
+.req-top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.from{color:var(--muted);font-size:14px;margin:0}
+.req h1{font-size:clamp(26px,3.4vw,38px);line-height:1.08;margin:10px 0 8px;font-stretch:115%;font-weight:760;letter-spacing:-.01em}
+.ask{margin:0;max-width:60ch}
+.risk{display:inline-flex;align-items:center;font-size:13px;font-weight:650;padding:3px 10px;border-radius:999px}
+.risk.High{background:var(--danger-soft);color:var(--danger)}
+.risk.Medium{background:var(--gate-soft);color:var(--gate-ink)}
+.risk.Low{background:var(--ok-soft);color:var(--ok)}
+.clues{margin:12px 0 0;padding-left:20px}
+.clues li{margin:2px 0}
+.port-card .pc-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.port-card .pc-head .mark{width:26px;height:26px;border-radius:7px}
+.port-card dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14.5px}
+.port-card dt{color:var(--muted)}
+.port-card dd{margin:0;font-weight:560}
+.port-note{font-size:13.5px;color:var(--muted);margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+
+/* Line */
+.line-wrap{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 16px 14px}
+.line-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.line-head h2{margin:0;font-size:20px;font-stretch:115%}
+.line-head p{margin:0;color:var(--muted);font-size:14.5px}
+.line-scroll{overflow-x:auto;padding-bottom:6px;margin-top:4px}
+.line{position:relative;display:flex;align-items:stretch;min-width:1060px;padding-top:48px}
+.belt{position:absolute;left:0;right:0;top:18px;height:12px;border-radius:6px;
+  background:repeating-linear-gradient(90deg,var(--line) 0 14px,var(--surface-2) 14px 28px)}
+.line.running .belt{animation:belt .9s linear infinite}
+@keyframes belt{to{background-position:28px 0}}
+.crate{position:absolute;top:0;left:-6px;width:34px;height:34px;display:grid;place-items:center;font-size:24px;transition:left .7s cubic-bezier(.5,0,.3,1);z-index:3}
+.station{flex:1 1 140px;min-width:140px;background:var(--surface-2);border:1.5px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;position:relative;transition:border-color .2s, box-shadow .2s}
+.station::before{content:"";position:absolute;top:-18px;left:50%;width:2px;height:16px;background:var(--line)}
+.st-head{display:flex;align-items:center;gap:7px}
+.st-num{font-size:12px;font-weight:700;color:var(--muted)}
+.st-icon{font-size:17px}
+.st-head h3{margin:0;font-size:17px;font-stretch:112%}
+.st-desc{margin:0;font-size:13px;color:var(--muted);line-height:1.35}
+.station.active{border-color:var(--agent);box-shadow:0 0 0 3px var(--agent-soft)}
+.station.done{border-color:var(--ok)}
+.station.done .st-num::after{content:" ✓";color:var(--ok)}
+.station.fail{border-color:var(--danger);box-shadow:0 0 0 3px var(--danger-soft)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.seg button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 2px;font-size:13px;font-weight:650}
+.seg button:hover{border-color:var(--ink)}
+.seg button.on.human{background:var(--human);border-color:var(--human);color:var(--on-accent)}
+.seg button.on.agent{background:var(--agent);border-color:var(--agent);color:var(--on-accent)}
+.tools{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.tl{font-size:12px;font-weight:700;color:var(--muted)}
+.tool{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 9px;font-size:13px;text-align:left;font-weight:560}
+.tool:hover{border-color:var(--ink)}
+.tool.on{border-color:var(--ink);background:var(--ink);color:var(--surface);font-weight:700}
+.tool.on::before{content:"✓ "}
+.station.redo{border-color:var(--gate);box-shadow:0 0 0 3px var(--gate-soft)}
+.station.redo::after{content:"↩ Redoing";position:absolute;top:-12px;right:8px;z-index:2;font-size:11.5px;font-weight:750;padding:2px 8px;border-radius:999px;background:var(--gate);color:#1E1E1E}
+.who{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:680;padding:4px 9px;border-radius:8px;align-self:flex-start}
+.who.human{background:var(--human-soft);color:var(--human)}
+.who.agent{background:var(--agent-soft);color:var(--agent)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.chip.port{border-color:var(--agent);color:var(--agent)}
+.chip.warn{border-color:var(--gate);color:var(--gate-ink)}
+.act{width:100%;border:1.5px dashed var(--agent);background:var(--surface);color:var(--agent);border-radius:8px;padding:8px 6px;font-size:13px;font-weight:680}
+.act:hover:not(:disabled){border-style:solid}
+.act:disabled{opacity:.4}
+.signal{font-size:12.5px;line-height:1.35;padding:6px 8px;border-radius:8px;margin-top:auto}
+.signal.warn{background:var(--gate-soft);color:var(--gate-ink)}
+.signal.calm{background:var(--surface);color:var(--muted)}
+.signal.unknown{background:transparent;color:var(--muted);border:1px dashed var(--line)}
+.slot{flex:0 0 22px;display:flex;align-items:center;justify-content:center;position:relative}
+.appr{width:100%;border:1.5px dashed var(--gate);background:var(--surface);color:var(--gate-ink);border-radius:8px;padding:9px 6px;font-size:13px;font-weight:700;line-height:1.25}
+.appr:hover{background:var(--gate-soft)}
+.appr.on,.appr-band{position:relative;overflow:hidden;border:none;background:var(--gate-soft);color:var(--gate-ink);border-radius:8px;padding:12px 6px 8px;font-size:13px;font-weight:700;line-height:1.25;text-align:center}
+.appr.on::before,.appr-band::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:repeating-linear-gradient(-45deg,var(--gate) 0 6px,var(--stripe) 6px 12px)}
+.appr.on small{display:block;font-weight:500;font-size:11.5px;opacity:.8;margin-top:2px}
+.appr-band.holding{box-shadow:0 0 0 3px var(--gate)}
+.appr-band.passed{opacity:.65}
+.gate-btn{writing-mode:vertical-rl;transform:rotate(180deg);border:1.5px dashed var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:12px 5px;font-size:12.5px;font-weight:680}
+.gate-btn:hover{border-color:var(--gate);color:var(--gate-ink);background:var(--gate-soft)}
+.barrier{position:absolute;top:-38px;bottom:0;left:50%;transform:translateX(-50%);width:18px;border-radius:5px;border:none;padding:0;
+  background:repeating-linear-gradient(-45deg,var(--gate) 0 8px,var(--stripe) 8px 16px)}
+button.barrier:hover{box-shadow:0 0 0 3px var(--danger-soft)}
+.barrier.holding{box-shadow:0 0 0 5px var(--gate-soft)}
+.barrier.passed{opacity:.35}
+.barrier .tag{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;background:var(--surface);border:2px solid var(--gate);display:grid;place-items:center;font-size:13px}
+
+/* Action bar */
+.actionbar{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-top:16px;flex-wrap:wrap}
+.hint{color:var(--muted);font-size:15px;max-width:62ch;margin:0}
+.hint.warn{color:var(--gate-ink)}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+
+/* Log */
+.log{margin-top:16px;background:#0F141B;color:#D7DEE8;border-radius:16px;padding:14px 16px;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.65;max-height:280px;overflow:auto;border:1px solid var(--line)}
+.log div{white-space:pre-wrap}.log .ok{color:#7BD8A2}.log .warn{color:#F5C451}.log .danger{color:#FF8A8A}.log .dim{color:#8A96A8}.log .head{color:#AEB8FF}
+
+/* Result */
+.total-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:6px 0 2px}
+.total{font-size:clamp(52px,7vw,84px);font-weight:800;font-stretch:125%;line-height:1;font-variant-numeric:tabular-nums}
+.of{color:var(--muted)}
+.stars{font-size:28px;letter-spacing:4px;color:var(--gate)}
+.rank{margin:0 0 12px;font-weight:650}
+.bd{width:100%;border-collapse:collapse;font-size:15px}
+.bd td{padding:7px 0;border-top:1px solid var(--line)}
+.bd td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
+.bd .neg{color:var(--danger)}.bd .pos{color:var(--ok)}
+.lessons{margin:0 0 18px;padding-left:20px}
+.lessons li{margin-bottom:8px}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(10,14,20,.6);display:grid;place-items:center;z-index:60;padding:16px}
+.modal[hidden]{display:none}
+.dialog{background:var(--surface);color:var(--ink);border-radius:16px;max-width:540px;width:100%;overflow:hidden;border:1px solid var(--line);max-height:calc(100vh - 32px);overflow-y:auto}
+.hazard{height:12px;background:repeating-linear-gradient(-45deg,var(--gate) 0 10px,var(--stripe) 10px 20px)}
+.dialog .body{padding:20px 22px 22px}
+.dialog .kicker{margin:0 0 4px;font-size:14px;color:var(--muted)}
+.dialog h2{margin:0 0 8px;font-size:23px;line-height:1.15;font-stretch:112%}
+.flag{display:inline-block;font-size:13.5px;background:var(--gate-soft);color:var(--gate-ink);padding:4px 10px;border-radius:8px}
+.output{background:var(--surface-2);border-radius:10px;padding:6px 14px;margin:14px 0 16px;list-style:none}
+.output li{padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
+.output li:last-child{border-bottom:none}
+.dbtns{display:flex;gap:10px}
+.approve{flex:1;background:var(--ok);color:var(--on-accent);border:none;border-radius:10px;padding:13px;font-weight:700;font-size:16px}
+.reject{flex:1;background:var(--surface);border:1.5px solid var(--danger);color:var(--danger);border-radius:10px;padding:12px;font-weight:700;font-size:16px}
+.verdict{border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.verdict p{margin:4px 0 0}
+.verdict.good{background:var(--ok-soft)}
+.verdict.bad{background:var(--danger-soft)}
+
+/* Coach */
+.coach{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:min(390px,calc(100vw - 32px));background:var(--ink);color:var(--surface);border-radius:16px;padding:16px 18px;z-index:40;box-shadow:0 14px 44px rgba(0,0,0,.28)}
+.coach[hidden]{display:none}
+.coach .ch{display:flex;gap:8px;align-items:center;font-weight:750;margin-bottom:6px}
+.coach .count{font-size:12px;opacity:.7;font-weight:500;margin-left:auto}
+.coach p{margin:0 0 12px;font-size:15px;line-height:1.45}
+.coach .row{display:flex;justify-content:space-between;align-items:center}
+.coach .go{background:var(--surface);color:var(--ink);border:none;border-radius:8px;padding:8px 16px;font-weight:700}
+.coach .skip{background:transparent;border:none;color:inherit;opacity:.75;font-size:13px;text-decoration:underline;padding:4px 0}
+.coach-target{outline:3px solid var(--gate) !important;outline-offset:4px;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{outline-offset:9px}}
+@media (max-width:640px){
+  .coach{left:16px;right:16px;width:auto}
+  .top{padding-left:14px;padding-right:14px}
+  main{padding:14px}
+  .hud{gap:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="brand" data-global="home" aria-label="AI Software Factory, go home">
+    <span class="mark" aria-hidden="true">🏭</span>
+    <span>AI Software Factory</span>
+  </button>
+  <div class="hud" id="hud" hidden>
+    <div class="stat"><span>Round</span><b id="hRound">1</b></div>
+    <div class="stat"><span>Hours</span><b id="hHours">0</b></div>
+    <div class="stat"><span>Score</span><b id="hScore">0</b></div>
+    <button class="ghost" data-global="tour">Replay tour</button>
+  </div>
+</header>
+<main id="app"></main>
+<div id="coach" class="coach" hidden role="dialog" aria-live="polite" aria-label="Factory guide"></div>
+<div id="modal" class="modal" hidden></div>
+
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   SHARED LEADERBOARD SETTINGS
+   Paste your Firebase project ID between the quotes below to turn on
+   one leaderboard for every player. Leave it empty and scores are
+   saved only in each player's own browser.
+   ===================================================================== */
+const LEADERBOARD = {
+  firebaseProjectId: 'sample-firebase-ai-app-a168f',   // e.g. 'ai-software-factory-1a2b3'
+  firebaseApiKey: ''       // optional, leave empty unless you want to add it
+};
+
+/* ---------- Storage (works on Vercel; falls back to memory if blocked) ---------- */
+const mem = {};
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : (k in mem ? mem[k] : d); }catch(e){ return k in mem ? mem[k] : d; } },
+  set(k, v){ mem[k] = v; try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- Game data ---------- */
+const STAGES = [
+  {id:'plan',    name:'Plan',    icon:'📝', desc:'Turn the request into a spec'},
+  {id:'code',    name:'Code',    icon:'⌨️', desc:'Write the change'},
+  {id:'test',    name:'Test',    icon:'🧪', desc:'Prove it works'},
+  {id:'review',  name:'Review',  icon:'🔍', desc:'Check quality and scope'},
+  {id:'deploy',  name:'Deploy',  icon:'🚀', desc:'Ship to production'},
+  {id:'monitor', name:'Monitor', icon:'📈', desc:'Watch it in production'}
+];
+
+const SCENARIOS = [
+  {title:'Add Apple Pay to checkout', from:'the Growth team', ask:'Shoppers want a one-tap way to pay. Add Apple Pay as a payment option on the checkout page.',
+   service:'checkout-service', team:'Payments', owner:'Priya Nair', oncall:'Marcus Lee', tier:'Gold, customer-facing',
+   deps:['payment-gateway','fraud-check'], scorecard:'Silver', risk:'High', clues:['Moves real money','PCI-scoped service'],
+   critical:{review:'PCI-scoped: changes need a human reviewer', deploy:'Gold tier: production deploys need sign-off'}},
+  {title:'Fix a typo on the pricing page', from:'Marketing', ask:'The Pro plan says “anual” instead of “annual”. Fix the copy on the public pricing page.',
+   service:'marketing-site', team:'Web', owner:'Tomás Rivera', oncall:'Ana Costa', tier:'Bronze',
+   deps:['cms'], scorecard:'Gold', risk:'Low', clues:['Text-only change','Static site with instant rollback'],
+   critical:{deploy:'Public website: a quick sign-off before it goes live'}},
+  {title:'Let users export their personal data', from:'Legal', ask:'Under GDPR, users can request a copy of their data. Build a self-serve export they can download.',
+   service:'user-service', team:'Identity', owner:'Aisha Khan', oncall:'Ben Okafor', tier:'Gold, customer-facing',
+   deps:['user-db','email-service'], scorecard:'Silver', risk:'High', clues:['Handles personal data (PII)','Legal deadline in 30 days'],
+   critical:{plan:'PII: a human approves what data is included', review:'PII: privacy review required', deploy:'Gold tier: production deploys need sign-off'}},
+  {title:'Migrate the orders database to Postgres 16', from:'the Platform team', ask:'Postgres 13 reaches end of life soon. Move the orders database to Postgres 16 with no lost orders.',
+   service:'orders-api', team:'Commerce Core', owner:'Wei Zhang', oncall:'Lena Fischer', tier:'Gold, customer-facing',
+   deps:['orders-db','inventory-service'], scorecard:'Bronze', risk:'High', clues:['Database migration','Every order flows through it'],
+   critical:{plan:'Schema change: the migration plan needs approval', test:'Bronze scorecard: test results need a human check', deploy:'Gold tier: production deploys need sign-off', monitor:'Migrations fail late: fixes in production need approval'}},
+  {title:'Add dark mode to the mobile app', from:'Design', ask:'Users keep asking for it. Add a dark theme that follows the phone’s system setting.',
+   service:'mobile-app', team:'Mobile', owner:'Sofia Rossi', oncall:'Jonas Berg', tier:'Silver',
+   deps:['design-tokens'], scorecard:'Gold', risk:'Medium', clues:['UI-only change','Ships through the app stores'],
+   critical:{review:'App store release: a human checks the build first'}},
+  {title:'Switch login to single sign-on', from:'IT', ask:'Enterprise customers need to log in with Okta. Add SSO to the login flow.',
+   service:'auth-service', team:'Identity', owner:'Kenji Mori', oncall:'Rita Gomez', tier:'Gold, customer-facing',
+   deps:['okta-connector','session-store'], scorecard:'Silver', risk:'High', clues:['Controls who can log in','Security-critical'],
+   critical:{plan:'Security-critical: the auth design needs approval', review:'Auth code: security review required', deploy:'Gold tier: production deploys need sign-off'}},
+  {title:'Make search results load faster', from:'Product', ask:'Search takes 2 seconds on busy days. Get it under 500 milliseconds.',
+   service:'search-api', team:'Discovery', owner:'Olivia Brown', oncall:'Sam Ito', tier:'Silver',
+   deps:['elasticsearch','catalog-service'], scorecard:'Gold', risk:'Medium', clues:['Performance change','Very high traffic'],
+   critical:{deploy:'High traffic: rollout needs sign-off', monitor:'Performance changes: fixes in production need approval'}},
+  {title:'Patch a critical security flaw in the logging library', from:'Security', ask:'A critical CVE was found in the shared logging library. Patch it everywhere, today.',
+   service:'platform-logging', team:'Platform', owner:'Hassan Ali', oncall:'Mei Chen', tier:'Gold, shared library',
+   deps:['42 services that import it'], scorecard:'Silver', risk:'High', clues:['Critical security fix','Used by every service'],
+   critical:{test:'Shared library: test results need a human check', deploy:'Touches 42 services: rollout needs sign-off'}},
+  {title:'Add an AI assistant to the help center', from:'Support', ask:'Let customers ask questions in plain language and get answers from our help articles.',
+   service:'support-portal', team:'Support Tools', owner:'Grace Kim', oncall:'Leo Martin', tier:'Silver',
+   deps:['knowledge-base','llm-gateway'], scorecard:'Bronze', risk:'Medium', clues:['Talks directly to customers','Customer data could reach prompts'],
+   critical:{plan:'Customer data in prompts: scope needs approval', review:'Customer-facing AI: human review required'}},
+  {title:'Add CSV export to internal reports', from:'Finance', ask:'The finance team wants to download any report as a CSV file.',
+   service:'reporting-service', team:'Analytics', owner:'Noah Wilson', oncall:'Ivy Chen', tier:'Bronze, internal',
+   deps:['data-warehouse'], scorecard:'Gold', risk:'Low', clues:['Internal users only','Read-only feature'],
+   critical:{review:'Data leaves the system: a human checks what’s exported'}}
+];
+
+/* What a gate reviewer sees. "who" is the worker label. */
+const GATE_EVENTS = {
+  plan: (sc) => ({
+    clean:{lines:[`Scope: ${sc.service} only`, `Dependencies covered: ${sc.deps.join(', ')}`, 'Rollback plan: included'],
+           note:'The spec covers every dependency Port knows about and includes a rollback plan.'},
+    issue:{lines:[`Scope: ${sc.service} only`, 'Dependencies covered: none listed', 'Rollback plan: missing'],
+           note:`The spec ignores ${sc.deps[0]}, which Port lists as a dependency, and has no rollback plan.`},
+    incident:`The spec skipped ${sc.deps[0]}. It broke two days later.`
+  }),
+  code: (sc) => ({
+    clean:{lines:[`12 files changed in ${sc.service}`, `Follows ${sc.team} team standards`, 'Secret scan: nothing found'],
+           note:'A small, focused change that matches team standards.'},
+    issue:{lines:[`12 files changed in ${sc.service}`, `Follows ${sc.team} team standards`, 'config.ts: API_KEY = "sk_live_9f2c…"'],
+           note:'A live API key is hardcoded in the code. Anyone with repo access could use it.'},
+    incident:'A live API key was committed to the repo and leaked.'
+  }),
+  test: (sc, who) => ({
+    clean:{lines:['312 tests passed, 0 skipped', 'Coverage: 84%', 'Integration tests: passed'],
+           note:'The full test suite ran and passed.'},
+    issue:{lines:['303 tests passed, 9 skipped', 'Coverage: 84%', `${who} note: “Turned off flaky integration tests to get a green build”`],
+           note:'Failing tests were switched off to look green. That hides real bugs.'},
+    incident:'Switched-off tests hid a bug that reached customers.'
+  }),
+  review: (sc) => ({
+    clean:{lines:[`All changes inside ${sc.service}`, `Owner ${sc.owner} notified`, `Scorecard after merge: ${sc.scorecard}`],
+           note:'Changes stay in scope and the owner is in the loop.'},
+    issue:{lines:[`Changes in ${sc.service}`, 'Also changes auth-middleware, which wasn’t in the request', 'Owner not notified'],
+           note:'The change edits auth code that was never part of the request, without telling the owner.'},
+    incident:'An out-of-scope auth change merged with nobody checking it.'
+  }),
+  deploy: (sc) => ({
+    clean:{lines:['Rollout: canary to 10% of traffic first', 'Rollback: one click, tested', `On-call ${sc.oncall}: acknowledged`],
+           note:'A gradual rollout, a tested rollback and on-call ready to help.'},
+    issue:{lines:['Rollout: 100% of traffic at once', 'Rollback: not set up', `On-call ${sc.oncall}: not notified`],
+           note:'All traffic at once, no way back, and nobody watching.'},
+    incident:'It shipped to 100% of traffic with no rollback. Customers saw errors for 40 minutes.'
+  }),
+  monitor: (sc, who) => ({
+    clean:{lines:['Error rate: 0.2% (normal)', 'Latency: unchanged', `${who} proposes: keep watching for 24 hours`],
+           note:'Everything is healthy, so watching is the right call.'},
+    issue:{lines:['Error rate: 0.3%', 'Latency: up 40% since the release', `${who} proposes: restart the production database now`],
+           note:'Restarting the production database means downtime. Rolling back the release is the safe fix.'},
+    incident:'The production database was restarted with no approval. 12 minutes of downtime.'
+  })
+};
+
+const TOOLS = {
+  plan:['Jira','Linear','Notion'],
+  code:['Claude Code','Codex','Cursor'],
+  test:['Playwright','Jest','Cypress'],
+  review:['GitHub','GitLab','CodeRabbit'],
+  deploy:['Argo CD','GitHub Actions','Jenkins'],
+  monitor:['Datadog','Grafana','PagerDuty']
+};
+
+const PHASES = [['brief','Brief'],['assign','Assign'],['harness','Harness'],['gates','Approvals'],['run','Run'],['score','Score']];
+const CATS = [['work','Work done at each stage'],['gates','Approval on risky stages'],['calls','Your approval decisions'],['missing','Risky stages with no approval'],['extra','Approvals that only slowed things down'],['speed','Speed bonus']];
+
+/* ---------- Guided tour ---------- */
+const COACH = {
+  brief:[
+    {t:'#reqPanel', x:()=>`Welcome to your software factory. Every round, a new feature request lands here. Today’s is “${S.scenario.title}”. Note the risk level and the clues.`},
+    {t:'#portPanel', x:()=>`This is Port, your organizational context. It knows who owns ${S.scenario.service}, what it depends on and how critical it is. Agents can use it as context.`},
+    {t:'#line', x:()=>'This is the SDLC: the line every feature moves through, from Plan to Monitor. You’ll staff each stage, then run the line.'},
+    {t:'#nextBtn', x:()=>'Click Start assigning when you’re ready.'}
+  ],
+  assign:[
+    {t:'#line', x:()=>`Pick Human or Agent for each stage. Human is ${S.scenario.owner}, who Port lists as the service owner. An AI agent finishes a stage in 1 hour instead of 6.`},
+    {t:'#line', x:()=>'Then pick the tool each stage works in, like Jira for planning or Claude Code for coding. Fill in all six stages, then continue.'}
+  ],
+  harness:[
+    {t:'#line', x:()=>'Agents can’t work on their own. A harness gives them guardrails, tools and permissions. Click Add harness on each agent, or use Harness all agents.'},
+    {t:'#line', x:()=>'Then connect Port context. With it, agents know the owner, dependencies and standards. Without it they guess, and they score less.'}
+  ],
+  gates:[
+    {t:'#line', x:()=>'Now decide where a human must sign off. Click Require human approval on a stage, and a person checks that stage’s work before it moves on.'},
+    {t:'#line', x:()=>'Read the Port signal on each card. Turn on approval for every stage Port flags as risky. Approval on safe stages slows the line and costs points.'}
+  ],
+  run:[
+    {t:'#log', x:()=>'The line is running. When a stage that needs approval finishes, you review what was produced. Approve it if it’s safe. If something looks wrong, send it back: that stage redoes the work and you review it again.'}
+  ],
+  score:[
+    {t:'#scorePanel', x:()=>'That’s your score. Every round brings a different feature with different risks. The tour is done, so you’re ready to play on your own.'}
+  ]
+};
+
+/* ---------- State ---------- */
+const S = {player:store.get('pf.player',''), phase:'welcome', guided:false, round:0, scenario:null, stages:[],
+  score:0, hours:0, log:[], bd:{}, wrong:[], recent:[], forced:false, crateAt:-1, lastEntry:null, running:false,
+  board:{status:'loading', rows:[], online:false}};
+let coachStep = 0;
+
+const $ = (s, el=document) => el.querySelector(s);
+const app = $('#app'), coach = $('#coach'), modal = $('#modal');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function pickScenario(){
+  const pool = SCENARIOS.map((s,i)=>i).filter(i => !S.recent.includes(i));
+  const i = pool[Math.floor(Math.random()*pool.length)];
+  S.recent.push(i); if(S.recent.length > 4) S.recent.shift();
+  return SCENARIOS[i];
+}
+
+function newRound(guided){
+  S.guided = guided;
+  S.round += 1;
+  if(guided){ S.scenario = SCENARIOS[0]; S.recent = [0]; } else { S.scenario = pickScenario(); }
+  S.stages = STAGES.map(s => ({...s, owner:null, tool:null, harness:false, context:false, gate:false, status:''}));
+  S.score = 0; S.hours = 0; S.log = []; S.bd = {}; S.wrong = []; S.forced = false; S.crateAt = -1; S.lastEntry = null;
+  go('brief');
+  window.scrollTo({top:0, behavior: reduceMotion() ? 'auto' : 'smooth'});
+}
+
+function go(phase){
+  S.phase = phase; coachStep = 0;
+  render(); showCoach();
+}
+
+/* ---------- Helpers ---------- */
+const ownerLabel = st => st.owner === 'human' ? S.scenario.owner.split(' ')[0] : 'AI agent';
+const isKnown = st => st.owner && (st.owner !== 'agent' || st.context);
+const agents = () => S.stages.filter(s => s.owner === 'agent');
+function maxScore(){
+  const crit = Object.keys(S.scenario.critical).length;
+  return 600 + crit*100 + Math.max(0, Math.round(200 - (6 + crit)*5));
+}
+
+/* ---------- Rendering ---------- */
+function render(){
+  const key = keyOf(document.activeElement);
+  $('#hud').hidden = S.phase === 'welcome';
+  updateHud();
+  if(S.phase === 'welcome'){
+    app.innerHTML = welcomeHTML();
+    loadBoard();
+  } else {
+    app.innerHTML = stepperHTML()
+      + (S.phase === 'score' ? resultHTML() : briefHTML())
+      + lineHTML() + actionHTML()
+      + (S.phase === 'run' || S.phase === 'score' ? logHTML() : '');
+  }
+  if(key){ const el = $(key); if(el && !el.disabled) el.focus({preventScroll:true}); }
+  applyCoachHighlight(false);
+  if(S.phase === 'run' || S.phase === 'score') placeCrate(S.crateAt, false);
+}
+
+function keyOf(el){
+  if(!el || !el.dataset || !el.dataset.act) return null;
+  const d = el.dataset;
+  return `[data-act="${d.act}"]` + (d.i !== undefined ? `[data-i="${d.i}"]` : '') + (d.v ? `[data-v="${d.v}"]` : '');
+}
+
+function updateHud(){
+  $('#hRound').textContent = S.round;
+  $('#hHours').textContent = S.hours + 'h';
+  $('#hScore').textContent = S.score;
+}
+function bumpScore(){
+  const el = $('#hScore'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+}
+
+/* ---------- Leaderboard: shared via Firestore, or local fallback ---------- */
+const ONLINE = !!LEADERBOARD.firebaseProjectId.trim();
+const FS_BASE = ONLINE ? `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(LEADERBOARD.firebaseProjectId.trim())}/databases/(default)/documents` : '';
+const FS_KEY = LEADERBOARD.firebaseApiKey.trim() ? `?key=${encodeURIComponent(LEADERBOARD.firebaseApiKey.trim())}` : '';
+
+async function fetchJSON(url, body){
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  try{
+    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal:ctl.signal});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally { clearTimeout(t); }
+}
+
+function saveLocal(entry){
+  const b = store.get('pf.board', []);
+  b.push(entry);
+  b.sort((a,c) => c.score - a.score);
+  store.set('pf.board', b.slice(0, 10));
+}
+
+async function loadBoard(){
+  if(!ONLINE){ S.board = {status:'ready', rows:store.get('pf.board', []), online:false}; paintBoard(); return; }
+  if(!S.board.rows.length) { S.board.status = 'loading'; paintBoard(); }
+  try{
+    const data = await fetchJSON(`${FS_BASE}:runQuery${FS_KEY}`, {structuredQuery:{
+      from:[{collectionId:'scores'}],
+      orderBy:[{field:{fieldPath:'score'}, direction:'DESCENDING'}],
+      limit:10
+    }});
+    const rows = (Array.isArray(data) ? data : []).filter(d => d.document).map(d => {
+      const f = d.document.fields || {};
+      return {
+        id: d.document.name.split('/').pop(),
+        name: (f.name && f.name.stringValue) || 'Player',
+        score: Number((f.score && f.score.integerValue) || 0),
+        feature: (f.feature && f.feature.stringValue) || ''
+      };
+    });
+    S.board = {status:'ready', rows, online:true};
+  } catch(e){
+    S.board = {status:'error', rows:store.get('pf.board', []), online:false};
+  }
+  paintBoard();
+}
+
+async function submitScore(){
+  const entry = {id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    name: (S.player || 'Player').slice(0,20), score: S.score, feature: S.scenario.title};
+  saveLocal(entry);
+  S.lastEntry = entry.id;
+  if(!ONLINE){ loadBoard(); return; }
+  S.board.status = 'saving'; paintBoard();
+  try{
+    const doc = await fetchJSON(`${FS_BASE}/scores${FS_KEY}`, {fields:{
+      name:{stringValue:entry.name},
+      score:{integerValue:String(entry.score)},
+      feature:{stringValue:entry.feature},
+      createdAt:{timestampValue:new Date().toISOString()}
+    }});
+    S.lastEntry = doc.name.split('/').pop();
+  } catch(e){ /* fall through: loadBoard shows the error state */ }
+  await loadBoard();
+}
+
+function boardListHTML(){
+  const b = S.board;
+  if(b.status === 'loading') return '<p class="empty">Loading scores…</p>';
+  let note = '';
+  if(b.status === 'saving') note = '<p class="empty">Saving your score…</p>';
+  if(b.status === 'error') note = '<p class="empty warnnote">Couldn’t reach the shared leaderboard right now, so these are scores from this device.</p>';
+  if(!b.rows.length) return note + '<p class="empty">No scores yet. Finish a round to claim the top spot.</p>';
+  const list = `<ol class="blist">${b.rows.map((e,k)=>`<li class="${S.lastEntry && e.id===S.lastEntry ? 'me' : ''}"><span><span class="pos">${k+1}</span>${esc(e.name)} <span class="muted">${esc(e.feature)}</span></span><b>${e.score}</b></li>`).join('')}</ol>`;
+  const missing = S.phase === 'score' && b.status === 'ready' && S.lastEntry && !b.rows.some(e => e.id === S.lastEntry)
+    ? `<p class="empty" style="margin-top:10px">Your ${S.score} isn’t in the top 10 yet. Play another round!</p>` : '';
+  return note + list + missing;
+}
+
+function boardBlock(){
+  return `<h2 class="ph" id="boardTitle">${ONLINE ? '🌍 Global leaderboard' : 'Leaderboard on this device'}</h2><div id="boardList">${boardListHTML()}</div>`;
+}
+
+function paintBoard(){
+  const el = $('#boardList'); if(el) el.innerHTML = boardListHTML();
+}
+
+function welcomeHTML(){
+  const toured = store.get('pf.toured', false);
+  return `<section class="welcome">
+    <div class="hero">
+      <div class="mini" aria-hidden="true"><span class="box">📦</span>
+        <span>Plan</span><span>Code</span><span>Test</span><span>Review</span><span class="gd">👤 Deploy</span><span>Monitor</span>
+      </div>
+      <h1>Run an AI software factory</h1>
+      <p class="lede">Features keep rolling in. Decide who builds each one, give your AI agents a harness and Port context, and put humans on the steps that need sign-off. Ship fast without shipping incidents.</p>
+      <ol class="steps-list">
+        <li>Read the feature request and what Port knows about the service</li>
+        <li>Pick a human or an AI agent for each SDLC stage, and the tool they use</li>
+        <li>Harness your agents and connect them to Port context</li>
+        <li>Require human approval on the risky stages</li>
+        <li>Run the line, then approve or send back the work</li>
+      </ol>
+      <label class="namefield"><span>Your name for the leaderboard</span>
+        <input id="playerName" maxlength="20" value="${esc(S.player)}" placeholder="e.g. Sam" autocomplete="nickname"></label>
+      <div class="start">
+        <button class="primary" data-act="${toured ? 'play' : 'tour'}">${toured ? 'Play a round' : 'Start the guided tour'}</button>
+        <button class="secondary" data-act="${toured ? 'tour' : 'play'}">${toured ? 'Replay the tour' : 'Skip the tour and play'}</button>
+      </div>
+    </div>
+    <aside class="panel board">${boardBlock()}</aside>
+  </section>`;
+}
+
+function stepperHTML(){
+  const idx = PHASES.findIndex(p => p[0] === S.phase);
+  return `<ol class="stepper" aria-label="Round progress">${PHASES.map((p,k)=>
+    `<li class="${k<idx ? 'done' : k===idx ? 'now' : ''}" ${k===idx ? 'aria-current="step"' : ''}><i>${k<idx ? '✓' : k+1}</i>${p[1]}</li>`).join('')}</ol>`;
+}
+
+
+function briefHTML(){
+  const sc = S.scenario;
+  let note = 'Agents only see this if you connect them to Port.';
+  if(['harness','gates','run'].includes(S.phase) && agents().length){
+    const c = agents().filter(a => a.context).length;
+    note = `${c} of ${agents().length} agent${agents().length>1?'s':''} connected to this context.`;
+  }
+  return `<section class="brief">
+    <div class="panel req" id="reqPanel">
+      <div class="req-top"><p class="from">Feature request from ${sc.from}</p><span class="risk ${sc.risk}">${sc.risk} risk</span></div>
+      <h1>${esc(sc.title)}</h1>
+      <p class="ask">${esc(sc.ask)}</p>
+      <ul class="clues">${sc.clues.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+    </div>
+    <div class="panel port-card" id="portPanel">
+      <div class="pc-head"><span class="mark" aria-hidden="true">📚</span><b>Port</b><span class="muted">organizational context for ${esc(sc.service)}</span></div>
+      <dl>
+        <dt>Owner</dt><dd>${esc(sc.owner)}, ${esc(sc.team)} team</dd>
+        <dt>On-call</dt><dd>${esc(sc.oncall)}</dd>
+        <dt>Tier</dt><dd>${esc(sc.tier)}</dd>
+        <dt>Depends on</dt><dd>${esc(sc.deps.join(', '))}</dd>
+        <dt>Scorecard</dt><dd>${esc(sc.scorecard)}</dd>
+      </dl>
+      <p class="port-note">${note}</p>
+    </div>
+  </section>`;
+}
+
+function whoHTML(st){
+  if(!st.owner) return '';
+  const h = st.owner !== 'agent';
+  return `<span class="who ${h ? 'human' : 'agent'}">${h ? '👤' : '🤖'} ${esc(ownerLabel(st))}</span>`;
+}
+
+function signalHTML(st){
+  const crit = S.scenario.critical[st.id];
+  if(!isKnown(st)) return '<div class="signal unknown">No Port context, so the risk is unknown</div>';
+  if(crit) return `<div class="signal warn">⚠ Port: ${esc(crit)}</div>`;
+  return '<div class="signal calm">Port: no risk flags</div>';
+}
+
+function stationHTML(st, i){
+  const p = S.phase;
+  let body = '';
+  if(p === 'assign'){
+    const seg = (v, label) => `<button class="${st.owner===v ? 'on '+v : ''}" data-act="assign" data-i="${i}" data-v="${v}" aria-pressed="${st.owner===v}" ${v==='human' ? `title="${esc(S.scenario.owner)}, service owner in Port"` : ''}>${label}</button>`;
+    body = `<div class="seg" role="group" aria-label="Who works ${st.name}">${seg('human','👤 Human')}${seg('agent','🤖 Agent')}</div>
+      <div class="tools" role="group" aria-label="Tool for ${st.name}"><span class="tl">Pick a tool</span>${TOOLS[st.id].map(t=>`<button class="tool ${st.tool===t ? 'on' : ''}" data-act="tool" data-i="${i}" data-v="${esc(t)}" aria-pressed="${st.tool===t}">${esc(t)}</button>`).join('')}</div>`;
+  } else if(p !== 'brief'){
+    body = whoHTML(st) + (st.tool ? `<div class="chips"><span class="chip">🛠 ${esc(st.tool)}</span></div>` : '');
+    if(st.owner === 'agent'){
+      if(p === 'harness'){
+        body += st.harness
+          ? '<div class="chips"><span class="chip ok">Guardrails</span><span class="chip ok">Tools</span><span class="chip ok">Permissions</span></div>'
+          : `<button class="act" data-act="harness" data-i="${i}">🛡️ Add harness</button>`;
+        body += st.context
+          ? '<div class="chips"><span class="chip port">Port context</span></div>'
+          : `<button class="act" data-act="context" data-i="${i}" ${st.harness ? '' : 'disabled title="Add a harness first"'}>🔌 Connect Port context</button>`;
+      } else {
+        body += `<div class="chips"><span class="chip ok">Harness</span>${st.context ? '<span class="chip port">Port context</span>' : '<span class="chip warn">No context</span>'}</div>`;
+      }
+    } else if(p === 'harness'){
+      body += '<p class="st-desc">Human-led, so no harness needed.</p>';
+    }
+    if(['gates','run','score'].includes(p)) body += signalHTML(st);
+    if(p === 'gates'){
+      body += st.gate
+        ? `<button class="appr on" data-act="gate" data-i="${i}" aria-pressed="true">👤 Human approves ${st.name}<small>Click to remove</small></button>`
+        : `<button class="appr" data-act="gate" data-i="${i}" aria-pressed="false">👤 Require human approval</button>`;
+    } else if((p === 'run' || p === 'score') && st.gate){
+      body += `<div class="appr-band" id="gate-${i}">👤 Human approves ${st.name}</div>`;
+    }
+  }
+  return `<div class="station ${st.status}" id="st-${i}">
+    <div class="st-head"><span class="st-num">${i+1}</span><span class="st-icon" aria-hidden="true">${st.icon}</span><h3>${st.name}</h3></div>
+    <p class="st-desc">${st.desc}</p>${body}</div>`;
+}
+
+function slotHTML(st, i){
+  return `<div class="slot" id="slot-${i}"></div>`;
+}
+
+function lineHTML(){
+  const subs = {brief:'Every feature moves through these six stages.', assign:'Choose a worker and a tool for each stage.',
+    harness:'Agents need a harness before they can run.', gates:'Turn on human approval for a stage: a person checks its work before it moves on.',
+    run:'Watch the work move down the line.', score:'How the line ran this round.'};
+  const showCrate = S.phase === 'run' || S.phase === 'score';
+  return `<section class="line-wrap" id="line">
+    <div class="line-head"><h2>The SDLC line</h2><p>${subs[S.phase]}</p></div>
+    <div class="line-scroll"><div class="line ${S.phase==='run' ? 'running' : ''}">
+      <div class="belt"></div>${showCrate ? '<div class="crate" id="crate" aria-hidden="true">📦</div>' : ''}
+      ${S.stages.map((st,i)=> stationHTML(st,i) + slotHTML(st,i)).join('')}
+    </div></div>
+  </section>`;
+}
+
+function actionHTML(){
+  const p = S.phase;
+  let hint = '', cls = '', extra = '', label = '', dis = false;
+  if(p === 'brief'){ hint = 'Read the request and what Port knows, then staff the line.'; label = 'Start assigning'; }
+  if(p === 'assign'){
+    const n = S.stages.filter(s => !s.owner || !s.tool).length;
+    hint = n ? `${n} stage${n>1?'s':''} still need${n>1?'':'s'} a worker and a tool.` : 'Every stage has a worker and a tool.';
+    label = agents().length ? 'Continue to harness' : 'Continue to approvals'; dis = n > 0;
+  }
+  if(p === 'harness'){
+    const a = agents(), noH = a.filter(s => !s.harness).length, noC = a.filter(s => !s.context).length;
+    if(!a.length) hint = 'No agents on the line, so there’s nothing to harness.';
+    else if(noH){ hint = `${noH} agent${noH>1?'s':''} still need${noH>1?'':'s'} a harness. Agents can’t run without one.`; cls = 'warn'; }
+    else if(noC){ hint = `${noC} agent${noC>1?'s have':' has'} no Port context. They’ll guess and score less.`; cls = 'warn'; }
+    else hint = 'Every agent is harnessed and connected to Port.';
+    if(a.length){
+      extra = `<button class="secondary" data-act="harnessAll" ${noH ? '' : 'disabled'}>🛡️ Harness all agents</button>
+               <button class="secondary" data-act="contextAll" ${noC ? '' : 'disabled'}>🔌 Connect all to Port</button>`;
+    }
+    label = 'Continue to approvals'; dis = noH > 0;
+  }
+  if(p === 'gates'){
+    const g = S.stages.filter(s => s.gate).length;
+    hint = g ? `${g} stage${g>1?'s':''} need${g>1?'':'s'} human approval. Turn it on where Port flags a risk, and nowhere else.` : 'No stage needs approval yet. Risky stages without approval can cause incidents.';
+    label = 'Run the factory';
+  }
+  if(p === 'run') hint = 'The line is running. You’ll review the work of each stage that needs approval.';
+  if(p === 'score'){ hint = 'A new feature with new risks is waiting.'; label = 'Next feature'; extra = '<button class="secondary" data-act="home">Back to home</button>'; }
+  return `<div class="actionbar"><p class="hint ${cls}" aria-live="polite">${hint}</p>
+    <div class="btnrow">${extra}${label ? `<button class="primary" id="nextBtn" data-act="next" ${dis ? 'disabled' : ''}>${label}</button>` : ''}</div></div>`;
+}
+
+function logHTML(){
+  return `<div class="log" id="log" aria-live="polite" aria-label="Factory log">${S.log.map(l=>`<div class="${l.cls}">${esc(l.text)}</div>`).join('')}</div>`;
+}
+
+function resultHTML(){
+  const sc = S.scenario, max = maxScore();
+  const pct = Math.max(0, S.score) / max;
+  const stars = pct >= .85 ? 3 : pct >= .6 ? 2 : pct >= .3 ? 1 : 0;
+  const titles = ['Back to training', 'Needs a retro', 'Solid shift', 'Factory lead'];
+  const rows = CATS.filter(c => S.bd[c[0]] !== undefined).map(c => {
+    const v = S.bd[c[0]];
+    return `<tr><td>${c[1]}</td><td class="n ${v<0 ? 'neg' : 'pos'}">${v>0 ? '+' : ''}${v}</td></tr>`;
+  }).join('');
+  return `<section class="result">
+    <div class="panel" id="scorePanel">
+      <p class="from">${esc(sc.title)}</p>
+      <div class="total-row"><span class="total">${S.score}</span><span class="of">out of ${max} possible</span></div>
+      <div class="stars" role="img" aria-label="${stars} of 3 stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
+      <p class="rank">${titles[stars]}, with ${S.hours} hours on the line</p>
+      <table class="bd"><tbody>${rows}</tbody></table>
+    </div>
+    <div class="panel">
+      <h2 class="ph">What to try next</h2>
+      <ul class="lessons">${lessons().map(l=>`<li>${esc(l)}</li>`).join('')}</ul>
+      ${boardBlock()}
+    </div>
+  </section>`;
+}
+
+function lessons(){
+  const L = [], sc = S.scenario;
+  const noCtx = S.stages.filter(s => s.owner === 'agent' && !s.context);
+  if(noCtx.length) L.push(`Connect Port context: agents on ${noCtx.map(s=>s.name).join(', ')} worked blind and earned 40 instead of 100.`);
+  S.stages.forEach(s => { if(sc.critical[s.id] && !s.gate) L.push(`Require approval on ${s.name} next time. Port flagged it: ${sc.critical[s.id]}.`); });
+  const extra = S.stages.filter(s => s.gate && !sc.critical[s.id]);
+  if(extra.length) L.push(`${extra.map(s=>s.name).join(', ')} had no risk flags, so approval there only slowed you down.`);
+  S.wrong.forEach(w => L.push(w));
+  const humans = S.stages.filter(s => s.owner && s.owner !== 'agent').length;
+  if(humans >= 3) L.push(`People spent ${humans*6} hours doing stage work. Harnessed agents with Port context do each stage in 1 hour, and you keep control through approvals.`);
+  if(!L.length) L.push('Clean run. Agents did the work, Port supplied the context, and humans signed off where it mattered.');
+  return L;
+}
+
+/* ---------- Crate, log, scoring ---------- */
+function placeCrate(pos, animate=true){
+  const c = $('#crate'), line = $('.line'); if(!c || !line) return;
+  let x;
+  if(pos < 0) x = -6;
+  else if(pos >= 6) x = line.scrollWidth - 34;
+  else {
+    const el = Number.isInteger(pos) ? $('#st-'+pos) : $('#slot-'+Math.floor(pos));
+    x = el.offsetLeft + el.offsetWidth/2 - 17;
+  }
+  if(!animate){ c.style.transition = 'none'; c.style.left = x + 'px'; void c.offsetWidth; c.style.transition = ''; }
+  else c.style.left = x + 'px';
+  const sc = $('.line-scroll');
+  if(sc && animate) sc.scrollTo({left: Math.max(0, x - sc.clientWidth/2), behavior: reduceMotion() ? 'auto' : 'smooth'});
+  S.crateAt = pos;
+}
+
+function addLog(text, cls=''){
+  S.log.push({text, cls});
+  const el = $('#log');
+  if(el){ const d = document.createElement('div'); d.className = cls; d.textContent = text; el.appendChild(d); el.scrollTop = el.scrollHeight; }
+}
+
+function addPts(pts, cat){
+  S.score += pts; S.bd[cat] = (S.bd[cat] || 0) + pts;
+  updateHud(); bumpScore();
+}
+function addHours(h){ S.hours += h; updateHud(); }
+
+function setStatus(i, status){
+  S.stages[i].status = status;
+  const el = $('#st-'+i); if(!el) return;
+  el.classList.remove('active','done','fail','redo'); if(status) el.classList.add(status);
+}
+function setGate(i, state){
+  const el = $('#gate-'+i); if(!el) return;
+  el.classList.remove('holding','passed'); if(state) el.classList.add(state);
+}
+
+/* ---------- Gate review ---------- */
+function gateReview(st, isIssue, attempt, prevIssue){
+  return new Promise(resolve => {
+    const sc = S.scenario, who = ownerLabel(st);
+    const ev = GATE_EVENTS[st.id](sc, who);
+    const v = isIssue ? ev.issue : ev.clean;
+    const again = attempt > 0;
+    const lines = again ? [prevIssue ? '✔ Fixed the problem you flagged' : 'No changes: the first version was already fine', ...v.lines] : v.lines;
+    modal.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="gTitle">
+      <div class="hazard"></div>
+      <div class="body">
+        <p class="kicker">Human approval for ${st.name}${again ? ', second look' : ''}</p>
+        <h2 id="gTitle">${again ? `${esc(who)} redid ${st.name}. Approve the new version?` : `${esc(who)} finished ${st.name} in ${esc(st.tool)}. Approve it?`}</h2>
+        <span class="flag">⚠ Port: ${esc(sc.critical[st.id])}</span>
+        <ul class="output">${lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>
+        <div id="gArea" class="dbtns">
+          <button class="reject" data-r="reject">↩ Send it back</button>
+          <button class="approve" data-r="approve">Approve</button>
+        </div>
+      </div></div>`;
+    modal.hidden = false;
+    modal.querySelector('.approve').focus();
+    modal.querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+      const r = b.dataset.r;
+      const correct = (isIssue && r === 'reject') || (!isIssue && r === 'approve');
+      let msg;
+      if(isIssue && r === 'reject') msg = `Good catch. ${v.note} It goes back to ${st.name} to be redone, and you’ll review it again.`;
+      else if(!isIssue && r === 'approve') msg = again ? (prevIssue ? 'Right call. The fix is in, so the work moves on.' : 'Right call. It was fine all along.') : `Right call. ${v.note}`;
+      else if(isIssue) msg = `This one had a problem. ${v.note}`;
+      else msg = `This was fine. ${again ? 'Nothing needed fixing.' : v.note} It still goes back to be redone, which costs time.`;
+      const btn = r === 'reject' ? `↩ Send it back to ${st.name}` : 'Continue the line';
+      $('#gArea').outerHTML = `<div class="verdict ${correct ? 'good' : 'bad'}" role="status"><b>${correct ? '✅ Correct' : '❌ Not quite'}</b><p>${esc(msg)}</p></div>
+        <button class="primary full" id="gGo">${btn}</button>`;
+      const goBtn = $('#gGo'); goBtn.focus();
+      goBtn.onclick = () => { modal.hidden = true; modal.innerHTML = ''; resolve({r, v}); };
+    });
+  });
+}
+
+/* ---------- Run the factory ---------- */
+async function runFactory(){
+  S.running = true;
+  S.stages.forEach(s => s.status = '');
+  S.crateAt = -1;
+  go('run');
+  const sc = S.scenario;
+  addLog(`Work item “${sc.title}” enters the line.`, 'head');
+  while(S.guided && !coach.hidden) await sleep(200);
+
+  for(let i = 0; i < S.stages.length; i++){
+    const st = S.stages[i];
+    setStatus(i, 'active'); placeCrate(i);
+    const who = ownerLabel(st);
+    addLog(`▶ ${st.name}: ${who} working in ${st.tool}${st.owner === 'agent' ? (st.context ? ' with harness and Port context' : ' with harness, no Port context') : ''}`);
+    await sleep(st.owner === 'agent' ? 1000 : 1600);
+
+    if(st.owner === 'agent'){
+      addHours(1);
+      if(st.context){ addPts(100, 'work'); addLog('  Done in 1h, using Port context. +100', 'ok'); }
+      else {
+        const miss = ['the service owner','the dependencies','the team’s coding standards'][i % 3];
+        addPts(40, 'work'); addLog(`  Done in 1h, but the agent guessed ${miss} without Port context. +40`, 'warn');
+      }
+    } else {
+      addHours(6); addPts(60, 'work'); addLog(`  Done in 6h by ${who}. +60`, 'ok');
+    }
+
+    const crit = sc.critical[st.id];
+    if(st.gate){
+      setGate(i, 'holding');
+      await sleep(700);
+      if(crit){
+        addHours(1); addPts(60, 'gates');
+        addLog(`⏸ ${st.name} needs your approval: Port flagged this stage. +60`, 'head');
+        let isIssue;
+        if(S.guided && !S.forced){ isIssue = true; S.forced = true; }
+        else {
+          const chance = st.owner === 'agent' ? (st.context ? 0.35 : 0.7) : 0.3;
+          isIssue = Math.random() < chance;
+        }
+        let attempt = 0, prevIssue = false;
+        while(true){
+          const {r, v} = await gateReview(st, isIssue, attempt, prevIssue);
+          if(r === 'approve'){
+            if(isIssue){ addPts(-80, 'calls'); addLog('  You approved work with a problem in it. −80', 'danger'); S.wrong.push(`At the ${st.name} approval: ${v.note}`); }
+            else if(attempt === 0){ addPts(40, 'calls'); addLog('  You approved clean work. +40', 'ok'); }
+            else addLog('  You approved the redone work. The line moves on.', 'ok');
+            break;
+          }
+          if(isIssue){ addPts(40, 'calls'); addLog('  You caught the problem and sent it back. +40', 'ok'); }
+          else {
+            addPts(-30, 'calls'); addLog('  You sent back work that was fine. −30', 'warn');
+            if(!S.wrong.some(w => w.startsWith(`At the ${st.name} approval`))) S.wrong.push(`At the ${st.name} approval, the work was fine. Approve clean work to keep the line moving.`);
+          }
+          attempt++; prevIssue = isIssue; isIssue = false;
+          setGate(i, ''); setStatus(i, 'redo');
+          placeCrate(i === 0 ? -1 : i - 0.5);
+          addLog(`↩ Back to ${st.name}: ${who} is redoing the work in ${st.tool}…`, 'warn');
+          await sleep(550); placeCrate(i);
+          await sleep(st.owner === 'agent' ? 1100 : 1700);
+          const h = st.owner === 'agent' ? 1 : 3; addHours(h);
+          addLog(`  Redone in ${h}h. Back for your approval.`, 'ok');
+          setStatus(i, 'active'); setGate(i, 'holding');
+          if(attempt >= 3){ addLog('  Sent back 3 times, so the on-call approved it to unblock the line.', 'dim'); break; }
+        }
+      } else {
+        addHours(1); addPts(-25, 'extra');
+        addLog(`⏸ ${st.name} waited for approval it didn’t need: no risk here. −25`, 'warn');
+        await sleep(500);
+      }
+      setGate(i, 'passed');
+    } else if(crit){
+      if(st.owner === 'agent'){
+        setStatus(i, 'fail');
+        addPts(-150, 'missing');
+        addLog(`🚨 Incident at ${st.name}: ${GATE_EVENTS[st.id](sc, who).incident} No human approval. −150`, 'danger');
+      } else {
+        addPts(-75, 'missing');
+        addLog(`⚠ ${st.name} was risky and had no approval. The audit flagged it. −75`, 'danger');
+      }
+      await sleep(1100);
+    }
+    if(S.stages[i].status !== 'fail') setStatus(i, 'done');
+  }
+
+  placeCrate(6);
+  const bonus = Math.max(0, Math.round(200 - S.hours*5));
+  addPts(bonus, 'speed');
+  addLog(`✔ Shipped in ${S.hours}h. Speed bonus +${bonus}`, 'head');
+  addLog(`Final score: ${S.score}`, 'head');
+  $('.line') && $('.line').classList.remove('running');
+  await sleep(1100);
+  S.running = false;
+  if(S.guided) store.set('pf.toured', true);
+  go('score');
+  submitScore();
+  window.scrollTo({top:0, behavior: reduceMotion() ? 'auto' : 'smooth'});
+}
+
+
+/* ---------- Coach ---------- */
+function clearHighlight(){ document.querySelectorAll('.coach-target').forEach(e => e.classList.remove('coach-target')); }
+function currentCoachStep(){
+  const steps = S.guided ? COACH[S.phase] : null;
+  return steps && coachStep < steps.length ? steps[coachStep] : null;
+}
+function applyCoachHighlight(scroll){
+  clearHighlight();
+  const st = currentCoachStep(); if(!st || coach.hidden) return;
+  const el = $(st.t); if(!el) return;
+  el.classList.add('coach-target');
+  if(scroll) el.scrollIntoView({behavior: reduceMotion() ? 'auto' : 'smooth', block:'center'});
+}
+function showCoach(){
+  const steps = S.guided ? COACH[S.phase] : null;
+  if(!steps || coachStep >= steps.length){
+    coach.hidden = true; document.body.classList.remove('coaching'); clearHighlight(); return;
+  }
+  const st = steps[coachStep], last = coachStep === steps.length - 1;
+  coach.innerHTML = `<div class="ch"><span aria-hidden="true">🧭</span>Factory guide<span class="count">${coachStep+1} of ${steps.length}</span></div>
+    <p>${esc(st.x())}</p>
+    <div class="row"><button class="skip" id="cSkip">Skip the tour</button><button class="go" id="cGo">${last ? 'Got it' : 'Next'}</button></div>`;
+  coach.hidden = false; document.body.classList.add('coaching');
+  applyCoachHighlight(true);
+  $('#cGo').onclick = () => { coachStep++; showCoach(); };
+  $('#cSkip').onclick = () => { S.guided = false; store.set('pf.toured', true); showCoach(); };
+}
+
+/* ---------- Actions ---------- */
+function next(){
+  const p = S.phase;
+  if(p === 'brief') go('assign');
+  else if(p === 'assign'){ if(S.stages.some(s => !s.owner || !s.tool)) return; go(agents().length ? 'harness' : 'gates'); }
+  else if(p === 'harness'){ if(agents().some(s => !s.harness)) return; go('gates'); }
+  else if(p === 'gates') runFactory();
+  else if(p === 'score') newRound(false);
+}
+
+function readName(){
+  const inp = $('#playerName');
+  if(inp){ S.player = inp.value.trim().slice(0,20) || 'Player'; store.set('pf.player', S.player); }
+}
+
+app.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b || b.disabled || S.running) return;
+  const act = b.dataset.act, i = b.dataset.i !== undefined ? +b.dataset.i : -1, st = S.stages[i];
+  switch(act){
+    case 'tour': readName(); S.round = 0; newRound(true); return;
+    case 'play': readName(); newRound(false); return;
+    case 'home': goHome(); return;
+    case 'next': next(); return;
+    case 'assign': st.owner = b.dataset.v; if(st.owner !== 'agent'){ st.harness = false; st.context = false; } break;
+    case 'tool': st.tool = b.dataset.v; break;
+    case 'harness': st.harness = true; break;
+    case 'context': if(st.harness) st.context = true; break;
+    case 'harnessAll': agents().forEach(s => s.harness = true); break;
+    case 'contextAll': agents().forEach(s => { s.harness = true; s.context = true; }); break;
+    case 'gate': st.gate = !st.gate; break;
+    default: return;
+  }
+  render();
+});
+
+app.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && e.target.id === 'playerName'){
+    const btn = $('.start .primary'); if(btn) btn.click();
+  }
+});
+
+function goHome(){
+  if(S.running) return;
+  S.guided = false; S.phase = 'welcome'; coachStep = 0;
+  coach.hidden = true; document.body.classList.remove('coaching');
+  render();
+}
+
+document.querySelectorAll('[data-global]').forEach(b => b.addEventListener('click', () => {
+  if(S.running) return;
+  if(b.dataset.global === 'home') goHome();
+  if(b.dataset.global === 'tour'){ newRound(true); }
+}));
+
+window.addEventListener('resize', () => { if(S.phase === 'run' || S.phase === 'score') placeCrate(S.crateAt, false); });
+
+render();
+})();
+</script>
+</body>
+</html>
